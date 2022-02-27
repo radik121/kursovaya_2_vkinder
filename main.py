@@ -1,4 +1,5 @@
 import vk_api
+from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.longpoll import VkLongPoll, VkEventType
 from package.vk_token import token_group
 from vk_bot import VkBot
@@ -12,8 +13,11 @@ longpoll = VkLongPoll(vk_session)
 bot = VkBot()
 
 
-def sender(id_user, message):
-    vk.messages.send(user_id=id_user, message=message, random_id=0)
+def sender(id_user, message, keyboard=None):
+    if keyboard is not None:
+        vk.messages.send(user_id=id_user, message=message, random_id=0, keyboard=keyboard.get_keyboard())
+    else:
+        vk.messages.send(user_id=id_user, message=message, random_id=0)
 
 
 def photo_sender(id_user, attachment):
@@ -43,6 +47,8 @@ def message_bot():
     for event in longpoll.listen():
         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
             message_in = event.text.lower()
+            keyboard = VkKeyboard(one_time=True)
+            keyboard.add_button('Следующий', VkKeyboardColor.POSITIVE)
             user_id = event.user_id
             user_info = bot.user_data(user_id)
             candidates = [[cand_info['id'], cand_info['first_name'], cand_info['last_name']] for cand_info in
@@ -66,14 +72,20 @@ def message_bot():
                 sender(user_id, f"Подходящие кондидаты:")
                 d = db_candidate(candidates)
                 print(d)
-                sender(user_id, f"[id{d[0]}|{d[1]} {d[2]}]")
-                photo_sender(user_id, bot.get_vk_photos(d[0]))
+                if bot.get_vk_photos(d[0]) == 'No photos':
+                    sender(user_id, f"[id{d[0]}|{d[1]} {d[2]}] - Фотографий нет", keyboard)
+                else:
+                    sender(user_id, f"[id{d[0]}|{d[1]} {d[2]}]", keyboard)
+                    photo_sender(user_id, bot.get_vk_photos(d[0]))
 
             elif message_in in ["еще", "ещё", "след", "следующий"]:
                 d = db_candidate(candidates)
                 print(d)
-                sender(user_id, f"[id{d[0]}|{d[1]} {d[2]}]")
-                photo_sender(user_id, bot.get_vk_photos(d[0]))
+                if bot.get_vk_photos(d[0]) == 'No photos':
+                    sender(user_id, f"[id{d[0]}|{d[1]} {d[2]}] - Фотографий нет", keyboard)
+                else:
+                    sender(user_id, f"[id{d[0]}|{d[1]} {d[2]}]", keyboard)
+                    photo_sender(user_id, bot.get_vk_photos(d[0]))
 
             elif message_in == "пока":
                 sender(user_id, "Пока((")
