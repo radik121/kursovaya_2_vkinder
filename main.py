@@ -2,6 +2,7 @@ import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from package.vk_token import token_group
 from vk_bot import VkBot
+from add_database import db, VkUsers
 import time
 
 vk_session = vk_api.VkApi(token=token_group)
@@ -25,15 +26,17 @@ def get_message():
     return user_input
 
 
-def sender_candidate(cand_lst):
-    with open('db.txt', 'r+') as f:
-        db = f.readlines()
-        db = [d.rstrip() for d in db]
+def db_candidate(cand_lst):
+    with db:
+        db.create_tables([VkUsers])
+        data_db = VkUsers.select()
+        id_list = [i.id for i in data_db]
 
-        for i in cand_lst:
-            if str(i[0]) not in db:
-                f.write(f'{str(i[0])}\n')
-                return [i[0], i[1], i[2]]
+        for cand in cand_lst:
+            if cand[0] not in id_list:
+                cand_data = [{'id': cand[0], 'first_name': cand[1], 'last_name': cand[2]}]
+                VkUsers.insert_many(cand_data).execute()
+                return [cand[0], cand[1], cand[2]]
 
 
 def message_bot():
@@ -61,13 +64,13 @@ def message_bot():
                     user_info['city'] = get_message().title()
 
                 sender(user_id, f"Подходящие кондидаты:")
-                d = sender_candidate(candidates)
+                d = db_candidate(candidates)
                 print(d)
                 sender(user_id, f"[id{d[0]}|{d[1]} {d[2]}]")
                 photo_sender(user_id, bot.get_vk_photos(d[0]))
 
             elif message_in in ["еще", "ещё", "след", "следующий"]:
-                d = sender_candidate(candidates)
+                d = db_candidate(candidates)
                 print(d)
                 sender(user_id, f"[id{d[0]}|{d[1]} {d[2]}]")
                 photo_sender(user_id, bot.get_vk_photos(d[0]))
@@ -81,3 +84,5 @@ def message_bot():
 
 if __name__ == '__main__':
     message_bot()
+
+# print(db_candidate())
